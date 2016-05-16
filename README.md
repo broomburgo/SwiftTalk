@@ -10,7 +10,7 @@ Most of the ideas are renderend in Swift [playgrounds](https://developer.apple.c
 
 In category theory, [exponential objects](https://en.wikipedia.org/wiki/Exponential_object) are *parametric morphisms* in which the "parameter" is an object of a certain category.
 
-In object-oriented programming, exponential objects are defined as **method references**, that is, functions "extracted" from objects, in which the deriving instance is a local parameter of the function.
+In object-oriented programming, exponential objects are defined as **method references**, that is, functions "extracted" from classes, in which the first function's parameter is an instance of that class.
 
 ---
 
