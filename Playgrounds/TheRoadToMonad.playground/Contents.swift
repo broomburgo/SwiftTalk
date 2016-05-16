@@ -1,5 +1,9 @@
 /*:
- We're going to talk about PURE FUNCTIONS: some value goes in, some other value goes out, no side effects.
+ ## The Road to Monad
+ 
+ [Reference](https://www.youtube.com/watch?v=ZhuHCtR3xq8)
+
+ We're going to talk about **pure functions**: some value goes in, some other value goes out, no side effects.
  
  Swift notation for variables and functions is pretty mathematical: a `let` definition is an assertion about the type (an possibly the value) of a variable.
  */
@@ -77,7 +81,7 @@ assert((tenH <> sevenH) == fiveH)
 
 /*:
  Here's the metarule:
- `<>` has to be associative: (a <> b) <> c = a <> (b <> c)
+ `<>` has to be associative: `(a <> b) <> c = a <> (b <> c)`
  
  Here's the unit:
  `twelveH`
@@ -147,7 +151,7 @@ assert(h(A(3)).value == hm(A(3)).value.value)
 /*:
  To restore compositionality, we need the `>>-` operator (**bind**), which is not as simmetric as `<>`, and we need to actually put a *lamba* on the outer left of the expression.
  
- >>- works like <>, so has to be associative and has to have a unit instance.
+ `>>-` works like `<>`, so has to be associative and has to have a unit instance.
  */
 
 let im1: A -> M<A> = { a in (fm(a) >>- { b in gm(b) }) >>- { c in hm(c) } }
@@ -163,7 +167,7 @@ let m1u = m1 >>- unit
 assert(m1.value.value == m1u.value.value)
 
 /*:
- Last but not least, we want to consider functions like A -> M<B>, and compose them.
+ Last but not least, we want to consider functions like `A -> M<B>`, and compose them.
  */
 
 struct B {

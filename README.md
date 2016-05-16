@@ -6,7 +6,7 @@ Most of the ideas are renderend in Swift [playgrounds](https://developer.apple.c
 
 ---
 
-#### <a href="/Playgrounds/Exponentials.playground/Contents.swift">Exponentials</a>
+#### [Exponentials](/Playgrounds/Exponentials.playground/Contents.swift)
 
 In category theory, [exponential objects](https://en.wikipedia.org/wiki/Exponential_object) are *parametric morphisms* in which the "parameter" is an object of a certain category.
 
@@ -14,9 +14,9 @@ In object-oriented programming, exponential objects are defined as **method refe
 
 ---
 
-#### <a href="/Playgrounds/TheRoadToMonad.playground/Contents.swift">The Road to Monad</a>
+#### [The Road to Monad](/Playgrounds/TheRoadToMonad.playground/Contents.swift)
 
-Based on <a href="https://twitter.com/lorentzframe">Brian Beckman's</a> <a href="https://www.youtube.com/watch?v=ZhuHCtR3xq8">Don't fear the Monad</a>.
+Based on [Brian Beckman](https://twitter.com/lorentzframe)'s [Don't fear the Monad](https://www.youtube.com/watch?v=ZhuHCtR3xq8).
 
 Let's build a Monad, starting from the simple, basic need of *function composition*.
 

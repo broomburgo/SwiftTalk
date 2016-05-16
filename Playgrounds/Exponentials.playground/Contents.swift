@@ -1,3 +1,13 @@
+/*:
+ ## Exponentials
+ 
+ [Reference](https://en.wikipedia.org/wiki/Exponential_object)
+
+ We'd like to *extract* a method from a class and create a pure function out of it.
+ 
+ The first paramter of the resulting function will be an instance of that class.
+ */
+
 struct Number: CustomStringConvertible {
   let value: Int
   init(_ value: Int) {
@@ -33,16 +43,33 @@ struct Person {
   }
 }
 
-// (A -> () -> B) -> (A -> B)
+/*:
+ This doesn't work properly in Swift for methods that have a Void input, because we're going to produce a function of type:
+ 
+ `A -> () -> B`
+ 
+ But what we really want is a function of type:
+ 
+ `A -> B`
+ 
+ So to make this work we need a higher-order function of type:
+ 
+ `(A -> () -> B) -> (A -> B)`
+
+ We're sure this can be implemented, because this means (thanks, [Curry-Howard isomorphism](https://en.wikipedia.org/wiki/Curry–Howard_correspondence)):
+ 
+ `(P => (false => Q)) => (P => Q)`
+
+ but
+
+`(false => Q) => Q`
+
+ thus, we get a tautology.
+ */
 
 func ex<A,B>(origin: A -> () -> B) -> A -> B {
   return { origin($0)() }
 }
-
-/*
- (P => (false => Q)) => (P => Q)
- (false => Q) => Q
- */
 
 let getNameExponential = ex(Person.getName)
 
@@ -54,3 +81,5 @@ let persons = [
 
 let names = persons.map(getNameExponential)
 let john = names[0]
+
+print("DONE")
