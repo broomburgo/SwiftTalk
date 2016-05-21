@@ -21,3 +21,11 @@ Based on [Brian Beckman](https://twitter.com/lorentzframe)'s [Don't fear the Mon
 Let's build a Monad, starting from the simple, basic need of *function composition*.
 
 ---
+
+#### [Primitive Recursion](/Playgrounds/PrimitiveRecursion.playground/Contents.swift)
+
+Based on the first part of [this lesson](http://www.cs.cmu.edu/~cdm/pdf/PrimRec-6up.pdf).
+
+A introduction to primitive recursion, a.k.a., a way to build recursive functions on natural number by using basic functions and tools.
+
+---
