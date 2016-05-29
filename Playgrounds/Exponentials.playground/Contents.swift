@@ -67,11 +67,20 @@ struct Person {
  thus, we get a tautology.
  */
 
-func ex<A,B>(origin: A -> () -> B) -> A -> B {
+func exp<A,B>(origin: A -> () -> B) -> A -> B {
   return { origin($0)() }
 }
 
-let getNameExponential = ex(Person.getName)
+let getNameExponential = exp(Person.getName)
+
+/*:
+ It's easier and more readable to define the `exp` function as a postfix operator `^`.
+ */
+
+postfix operator ^ {}
+postfix func ^ <A,B> (origin: A -> () -> B) -> A -> B {
+  return { origin($0)() }
+}
 
 let persons = [
   Person(name: "John"),
@@ -79,7 +88,7 @@ let persons = [
   Person(name: "Annie")
 ]
 
-let names = persons.map(getNameExponential)
+let names = persons.map(Person.getName^)
 let john = names[0]
 
 print("DONE")
