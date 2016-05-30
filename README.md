@@ -29,3 +29,11 @@ Based on the first part of [this lesson](http://www.cs.cmu.edu/~cdm/pdf/PrimRec-
 A introduction to primitive recursion, a.k.a., a way to build recursive functions on natural number by using basic functions and tools.
 
 ---
+
+#### [All About Monads (**IN PROGRESS**)](/Playgrounds/AllAboutMonads.playground/Contents.swift)
+
+An opinionated translation into Swift of [this famous Haskell tutorial](https://wiki.haskell.org/All_About_Monads).
+
+The playground is still in progress.
+
+---
