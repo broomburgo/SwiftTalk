@@ -200,6 +200,92 @@ class Person {
  As we can see, the `>>-` combinator captures a general strategy for combining computations *that may fail to return a value*.
  */
 /*: ------ */
+/*:
+ ## The recipe for a monad
+
+ `List` is also a monad, and to be more *swifty* up-front we're going to directly refer to the `Array` type.
+ 
+ Why is `List` a monad? What kind of *computation strategy* does it represent? There's plenty of uses, the most obvious being accumulating computations on sets of the same kind of data (like a list of integers); but another, more interesting case, can be the one of *ambiguous* computations, that is, computations that can return any number of values of a certain kind (also zero). The case with one or zero values is similar of the one of the `Maybe` monad, but more values are accepted.
+
+The Swift's standard library already defines a method on `Array` that corresponds to the `bind` operation: it's called `flatMap`, so we can trivially define the `>>-` operator on `Array`.
+ */
+func >>- <A,B>(lhs: [A], rhs: A -> [B]) -> [B] {
+	return lhs.flatMap(rhs)
+}
+/*:
+ So `Optional` and `Array` share a mechanism for composing computations, based on the following generic pattern:
+
+```func >>- <A,B>(lhs: Monad<A>, rhs: A -> Monad<B>) -> Monad<B>```
+
+ Unfortunately, we cannot express this concept generically in Swift, becase `Monad` in the function above has to be the *same kind of type* for both `Monad<A>` and `Monad<B>`, and for example if we used this function on a `Optional<A>` the type system should enforce the creation of a `Optional<B>` and not a generic `Monad<B>`. It's not possible to do this in Swift because the lack of higher-kinded types (e.g. *typeclasses* in Haskell).
+
+This means that we cannot express generic computations on monads in Swift without an hacky approach. It's not a big deal really: we can still take advantage of the monadic approach for various cases, without the need for a completely generic interface. The idea is to *equip* with `>>-` various kinds of types, and also create specific types with a specific meaning for the operation. But there's a catch: to have some actual meaning, `>>-` and `return` must follow some *laws* that will give it the mathematical power it needs.
+
+#### The monad laws
+
+The laws basically state two things:
+
+- `return` must be an *identity* operation in respect to `>>-`, both from left and from right (first two laws);
+- `>>-` must be left-associative (third law);
+
+To state this, we need to prove for each monad we build that (we'll use a fake `Monad` type to express the operations in Swift):
+ */
+class Monad<A: Equatable>: Equatable {
+	let value: A
+	init(_ value: A) {
+		self.value = value
+	}
+}
+func >>- <A,B> (lhs: Monad<A>, rhs: A -> Monad<B>) -> Monad<B> {
+	return rhs(lhs.value)
+}
+func == <A>(lhs: Monad<A>, rhs: Monad<A>) -> Bool {
+	return lhs.value == rhs.value
+}
+
+let firstLaw: Int -> Bool = { x in
+	let f: Int -> Monad<Int> = { Monad($0*$0) }
+	return (Monad(x) >>- f) == f(x)
+}
+
+let secondLaw: Int -> Bool = { x in
+	return Monad(x) >>- Monad.init == Monad(x)
+}
+
+let thirdLaw: Int -> Bool = { x in
+	let f: Int -> Monad<Int> = { Monad($0*$0) }
+	let g: Int -> Monad<Int> = { Monad($0*2) }
+	return Monad(x) >>- f >>- g == Monad(x) >>- { a in f(a) >>- g }
+}
+/*:
+ To check the laws validity for `Monad<A>`, we'll simply apply the laws to an array of random integers, and check if it stands for every integer: that's a very limited proof, but it's sufficient for the present case.
+*/
+let variousIntegers = [1,33,3,61,5,28,8,10,40,35,49,6,222,7,63,343,51,2,63,74,64,26]
+
+func checkLaw(law: Int -> Bool) -> Bool {
+	return variousIntegers.map(law).reduce(true) { $0 && $1 };
+}
+
+assert(checkLaw(firstLaw) == true)
+assert(checkLaw(secondLaw) == true)
+assert(checkLaw(thirdLaw) == true)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 print("TO BE CONTINUED")
 
