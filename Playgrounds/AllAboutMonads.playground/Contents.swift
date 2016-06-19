@@ -243,32 +243,31 @@ func == <A>(lhs: Monad<A>, rhs: Monad<A>) -> Bool {
 	return lhs.value == rhs.value
 }
 
-let firstLaw: Int -> Bool = { x in
-	let f: Int -> Monad<Int> = { Monad($0*$0) }
-	return (Monad(x) >>- f) == f(x)
-}
+extension Monad {
+	static func firstLaw(f f: A -> Monad<A>) -> A -> Bool {
+		return { x in (Monad(x) >>- f) == f(x) }
+	}
 
-let secondLaw: Int -> Bool = { x in
-	return Monad(x) >>- Monad.init == Monad(x)
-}
+	static func secondLaw() -> A -> Bool {
+		return { x in Monad(x) >>- Monad.init == Monad(x) }
+	}
 
-let thirdLaw: Int -> Bool = { x in
-	let f: Int -> Monad<Int> = { Monad($0*$0) }
-	let g: Int -> Monad<Int> = { Monad($0*2) }
-	return Monad(x) >>- f >>- g == Monad(x) >>- { a in f(a) >>- g }
+	static func thirdLaw(f f: A -> Monad<A>, g: A -> Monad<A>) -> A -> Bool {
+		return { x in Monad(x) >>- f >>- g == Monad(x) >>- { a in f(a) >>- g } }
+	}
+
 }
 /*:
- To check the laws validity for `Monad<A>`, we'll simply apply the laws to an array of random integers, and check if it stands for every integer: that's a very limited proof, but it's sufficient for the present case.
+ To check the laws validity for `Monad<A>`, we'll simply apply the laws to an array of random integers, and check if it stands for every integer: because we're "passing in" the `f` and `g`functions to the laws, the proof can be considered sufficient for the present case.
 */
-let variousIntegers = [1,33,3,61,5,28,8,10,40,35,49,6,222,7,63,343,51,2,63,74,64,26]
-
-func checkLaw(law: Int -> Bool) -> Bool {
-	return variousIntegers.map(law).reduce(true) { $0 && $1 };
+/// 'randomIntegers' is an helper function, defined in "Utilities.swift"
+func checkLaw(law: Int -> Bool) {
+	assert(randomIntegers(range: (-100...100), count: 100).map(law).reduce(true) { $0 && $1 });
 }
 
-assert(checkLaw(firstLaw) == true)
-assert(checkLaw(secondLaw) == true)
-assert(checkLaw(thirdLaw) == true)
+checkLaw(Monad<Int>.firstLaw(f: { Monad($0*$0) }))
+checkLaw(Monad<Int>.secondLaw())
+checkLaw(Monad<Int>.thirdLaw(f: { Monad($0*$0) }, g: { Monad($0*2) }))
 
 
 
