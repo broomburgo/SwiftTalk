@@ -282,47 +282,47 @@ Notice that in our simple monad called `Box<A>` we have a way to retrieve the co
 
 What's the point of having one-way monads? They allow us to safely express and compose computations with side effects and/or asynchronous like we were manipulating any other pure, synchronous function.
 
-Let suppose, for example, that we need a way to compose expensive computations in single blocks of code that can be run at will, but in separate queues. We could imagine a `Operation` monad that's created with a function.
+Let suppose, for example, that we need a way to compose expensive computations in single blocks of code that can be run at will, but in separate queues. We could imagine a `OperationTo<A>` monad that's created with a function.
 */
-class Operation<A: Equatable> {
+class OperationTo<A: Equatable> {
 	let run: () -> A
 	init(_ function: () -> A) {
 		self.run = function
 	}
 
-	static func unit(x: A) -> Operation<A> {
-		return Operation { x }
+	static func unit(x: A) -> OperationTo<A> {
+		return OperationTo { x }
 	}
 }
 
-func >>- <A,B> (lhs: Operation<A>, rhs: A -> Operation<B>) -> Operation<B> {
-	return Operation<B> {
+func >>- <A,B> (lhs: OperationTo<A>, rhs: A -> OperationTo<B>) -> OperationTo<B> {
+	return OperationTo<B> {
 		return rhs(lhs.run()).run()
 	}
 }
 
-func == <A>(lhs: Operation<A>, rhs: Operation<A>) -> Bool {
+func == <A>(lhs: OperationTo<A>, rhs: OperationTo<A>) -> Bool {
 	return lhs.run() == rhs.run()
 }
 /*:
-Notice how we defined `unit` and `>>-` for `Operation<A>`:
+Notice how we defined `unit` and `>>-` for `OperationTo<A>`:
 
-- by the very definition of *monad*, `unit` must be called **directly** with a value of type `A`, so in the function we constuct a value of type `Operation<A>` by putting the value `A` into a closure;
-The new `Operation<B>` is created with a function that, when run, will run both the `Operation<A>` monad function, and the product of the function `A -> Operation<B>`, called with the result of the first operation.
+- by the very definition of *monad*, `unit` must be called **directly** with a value of type `A`, so in the function we constuct a value of type `OperationTo<A>` by putting the value `A` into a closure;
+- the new `OperationTo<B>` is created with a function that, when run, will run both the `OperationTo<A>` monad function, and the product of the function `A -> OperationTo<B>`, called with the result of the first operation.
 
-This looks cool, but is it really a monad? The types match, but can we really compose instances of `Operation<A>` arbitrarily, yielding the result we expect? We need to verify the three monad laws for `Operation`.
+This looks cool, but is it really a monad? The types match, but can we really compose instances of `OperationTo<A>` arbitrarily, yielding the result we expect? We need to verify the three monad laws for `OperationTo<A>`.
 */
-extension Operation {
-	static func firstLaw(f f: A -> Operation<A>) -> A -> Bool {
-		return { x in (Operation.unit(x) >>- f) == f(x) }
+extension OperationTo {
+	static func firstLaw(f f: A -> OperationTo<A>) -> A -> Bool {
+		return { x in (OperationTo.unit(x) >>- f) == f(x) }
 	}
 
 	static func secondLaw() -> A -> Bool {
-		return { x in Operation.unit(x) >>- Operation.unit == Operation.unit(x) }
+		return { x in OperationTo.unit(x) >>- OperationTo.unit == OperationTo.unit(x) }
 	}
 
-	static func thirdLaw(f f: A -> Operation<A>, g: A -> Operation<A>) -> A -> Bool {
-		return { x in Operation.unit(x) >>- f >>- g == Operation.unit(x) >>- { a in f(a) >>- g } }
+	static func thirdLaw(f f: A -> OperationTo<A>, g: A -> OperationTo<A>) -> A -> Bool {
+		return { x in OperationTo.unit(x) >>- f >>- g == OperationTo.unit(x) >>- { a in f(a) >>- g } }
 	}
 }
 /*:
@@ -330,7 +330,9 @@ As we can see, the implementations of the monad laws for `Operation<A>` are *exa
 
 Let's verify those laws:
 */
-
+checkLaw(OperationTo<Int>.firstLaw(f: { x in OperationTo { x*x }}))
+checkLaw(OperationTo<Int>.secondLaw())
+checkLaw(OperationTo<Int>.thirdLaw(f: {x in OperationTo { x*x }}, g: {x in OperationTo { x*2 }}))
 
 
 
