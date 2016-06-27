@@ -326,7 +326,7 @@ extension OperationTo {
 	}
 }
 /*:
-As we can see, the implementations of the monad laws for `Operation<A>` are *exactly the same* as the ones for `Box`, with the only difference that we replaced `Box` with `Operation`.
+As we can see, the implementations of the monad laws for `OperationTo<A>` are *exactly the same* as the ones for `Box<A>`, with the only difference that we replaced `Box` with `OperationTo`.
 
 Let's verify those laws:
 */
