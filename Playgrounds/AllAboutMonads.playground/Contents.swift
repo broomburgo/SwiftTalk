@@ -171,6 +171,10 @@ extension Person1 {
  Finally, we'll just redefine everything we just did for the included type `Optional`, to make it work as a monad. We'll also redefine `Person` to use optionals (as expected).
  */
 extension Optional {
+  static func unit (value: Wrapped) -> Optional {
+    return .Some(value)
+  }
+
   func bind <B> (transform: Wrapped -> B?) -> B? {
     switch self {
     case .None:
@@ -302,70 +306,177 @@ checkLaw(Identity<Int>.thirdLaw(f: { Identity($0*$0) }, g: { Identity($0*2) }))
 
  What's the point of having one-way monads? They allow us to safely express and compose computations with side effects and/or asynchronous like we were manipulating any other pure, synchronous function.
 
- Let suppose, for example, that we need a way to compose expensive computations in single blocks of code that can be run at will, but in separate queues. We could imagine a `OperationTo<A>` monad that's created with a function.
+ Let suppose, for example, that we need a way to compose expensive computations in single blocks of code that can be run at will, but in separate queues. We could imagine a `Operation<A>` monad that's created with a function.
  */
-struct OperationTo<A: Equatable> {
-  let run: () -> A
-  init(_ function: () -> A) {
-    self.run = function
+struct Operation<A: Equatable>: Equatable {
+  private let value: () -> A
+  init(_ value: () -> A) {
+    self.value = value
   }
 
-  static func unit(x: A) -> OperationTo<A> {
-    return OperationTo { x }
+  func runOperation() -> A {
+    return value()
   }
 
-  func bind <B> (transform: A -> OperationTo<B>) -> OperationTo<B> {
-    return OperationTo<B> {
-      return transform(self.run()).run()
+  static func unit(x: A) -> Operation<A> {
+    return Operation { x }
+  }
+
+  func bind <B> (transform: A -> Operation<B>) -> Operation<B> {
+    return Operation<B> {
+      return transform(self.runOperation()).runOperation()
     }
   }
 }
 
-func >>- <A,B> (lhs: OperationTo<A>, rhs: A -> OperationTo<B>) -> OperationTo<B> {
+func >>- <A,B> (lhs: Operation<A>, rhs: A -> Operation<B>) -> Operation<B> {
   return lhs.bind(rhs)
 }
 
-func == <A>(lhs: OperationTo<A>, rhs: OperationTo<A>) -> Bool {
-  return lhs.run() == rhs.run()
+func == <A>(lhs: Operation<A>, rhs: Operation<A>) -> Bool {
+  return lhs.runOperation() == rhs.runOperation()
 }
 /*:
- Notice how we defined `unit` and `>>-` for `OperationTo<A>`:
+ Notice how we defined `unit` and `>>-` for `Operation<A>`:
 
- - by the very definition of *monad*, `unit` must be called **directly** with a value of type `A`, so in the function we constuct a value of type `OperationTo<A>` by putting the value `A` into a closure;
- - the new `OperationTo<B>` is created with a function that, when run, will run both the `OperationTo<A>` monad function, and the product of the function `A -> OperationTo<B>`, called with the result of the first operation.
+ - by the very definition of *monad*, `unit` must be called **directly** with a value of type `A`, so in the function we constuct a value of type `Operation<A>` by putting the value `A` into a closure;
+ - the new `Operation<B>` is created with a function that, when run, will run both the `Operation<A>` monad function, and the product of the function `A -> Operation<B>`, called with the result of the first operation.
 
- This looks cool, but is it really a monad? The types match, but can we really compose instances of `OperationTo<A>` arbitrarily, yielding the result we expect? We need to verify the three monad laws for `OperationTo<A>`.
+ This looks cool, but is it really a monad? The types match, but can we really compose instances of `Operation<A>` arbitrarily, yielding the result we expect? We need to verify the three monad laws for `Operation<A>`.
  */
-extension OperationTo {
-  static func firstLaw(f f: A -> OperationTo<A>) -> A -> Bool {
-    return { x in (OperationTo.unit(x) >>- f) == f(x) }
+extension Operation {
+  static func firstLaw(f f: A -> Operation<A>) -> A -> Bool {
+    return { x in (Operation.unit(x) >>- f) == f(x) }
   }
 
   static func secondLaw() -> A -> Bool {
-    return { x in OperationTo.unit(x) >>- OperationTo.unit == OperationTo.unit(x) }
+    return { x in Operation.unit(x) >>- Operation.unit == Operation.unit(x) }
   }
 
-  static func thirdLaw(f f: A -> OperationTo<A>, g: A -> OperationTo<A>) -> A -> Bool {
-    return { x in OperationTo.unit(x) >>- f >>- g == OperationTo.unit(x) >>- { a in f(a) >>- g } }
+  static func thirdLaw(f f: A -> Operation<A>, g: A -> Operation<A>) -> A -> Bool {
+    return { x in Operation.unit(x) >>- f >>- g == Operation.unit(x) >>- { a in f(a) >>- g } }
   }
 }
 /*:
- As we can see, the implementations of the monad laws for `OperationTo<A>` are *exactly the same* as the ones for `Identity<A>`, with the only difference that we replaced `Identity` with `OperationTo`.
+ As we can see, the implementations of the monad laws for `Operation<A>` are *exactly the same* as the ones for `Identity<A>`, with the only difference that we replaced `Identity` with `Operation`.
 
  Let's verify those laws:
  */
-checkLaw(OperationTo<Int>.firstLaw(f: { x in OperationTo { x*x }}))
-checkLaw(OperationTo<Int>.secondLaw())
-checkLaw(OperationTo<Int>.thirdLaw(f: {x in OperationTo { x*x }}, g: {x in OperationTo { x*2 }}))
+checkLaw(Operation<Int>.firstLaw(f: { x in Operation { x*x }}))
+checkLaw(Operation<Int>.secondLaw())
+checkLaw(Operation<Int>.thirdLaw(f: {x in Operation { x*x }}, g: {x in Operation { x*2 }}))
 /*: ------ */
 /*:
- ## Basic monads
+ ## Some useful monads
  
  We already saw a few basic Monads: `Identity<A>` is possibly the simplest one, and its `bind` operation will simply apply the function passed to `bind` to the boxed value.
  
+ We also saw `Maybe<A>`, which works the same as the built-in `Optional` type.
+ 
+ There's no need to formally define `List<A>` because it works like the built-in 'Array', where, as in the Standard Swift Library, `bind` is called `flatMap`. We should use built-in types when possible, so let's extend `Array` to add the monadic operations as they were defined in the rest of this playground, like we did for `Optional`.
  */
+extension Array {
+  static func unit (value: Generator.Element) -> [Generator.Element] {
+    return [value]
+  }
 
+  func bind <B> (transform: Generator.Element -> [B]) -> [B] {
+    return flatMap(transform)
+  }
+}
+/*:
+ There actually a very basic monad that we still didn't mention: the `Either<A>` monad. The original *All About Monads* article actually talks about the `MonadError<A>` class, and implements it in terms of the `Either<A>` monad, so that `MonadError<A>` ends up being an instance of `Either<A>`. I prefer just illustrating how to define and use `Either<A>`, with the `.Left` case attached to a `ErrorType`, that is, the Swift built-in error protocol.
+ */
+enum Either<A: Equatable>: Equatable {
+  case Left(ErrorType)
+  case Right(A)
 
+  static func unit (value: A) -> Either {
+    return .Right(value)
+  }
+
+  func bind <B> (transform: A -> Either<B>) -> Either<B> {
+    switch self {
+    case let .Left(error):
+      return Either<B>.Left(error)
+    case let .Right(value):
+      return transform(value)
+    }
+  }
+
+  func getOrCatch (catchError: ErrorType -> A) -> A {
+    switch self {
+    case let .Left(error):
+      return catchError(error)
+    case let .Right(value):
+      return value
+    }
+  }
+
+  func getOrCatch() throws -> A {
+    switch self {
+    case let .Left(error):
+      throw error
+    case let .Right(value):
+      return value
+    }
+  }
+}
+
+func >>- <A,B> (lhs: Either<A>, rhs: A -> Either<B>) -> Either<B> {
+  return lhs.bind(rhs)
+}
+
+func == <A> (lhs: Either<A>, rhs: Either<A>) -> Bool {
+  switch (lhs,rhs) {
+  case let (.Right(lhsValue),.Right(rhsValue)):
+    return lhsValue == rhsValue
+  default:
+    return false
+  }
+}
+/*:
+ I added a `getOrCatch` method that acts like the `catchError` function in the original article, but defined two implementations:
+
+ - the first implementation will return the contained value for the `.Right` case, or will call a catching function, still returning a value of the same type;
+ - the second implementation uses the built-in "throwing" mechanism to achieve the same goal, so it doesn't need a catching function, but must called within a `do{}catch{}` block;
+ 
+ As usual, we must verify the monad laws for `Either<A>`:
+ */
+extension Either {
+  static func firstLaw(f f: A -> Either<A>) -> A -> Bool {
+    return { x in (Either.unit(x) >>- f) == f(x) }
+  }
+
+  static func secondLaw() -> A -> Bool {
+    return { x in Either.unit(x) >>- Either.unit == Either.unit(x) }
+  }
+
+  static func thirdLaw(f f: A -> Either<A>, g: A -> Either<A>) -> A -> Bool {
+    return { x in Either.unit(x) >>- f >>- g == Either.unit(x) >>- { a in f(a) >>- g } }
+  }
+}
+
+checkLaw(Either<Int>.firstLaw(f: { x in Either.Right(x*x)}))
+checkLaw(Either<Int>.secondLaw())
+checkLaw(Either<Int>.thirdLaw(f: {x in Either.Right(x*x)}, g: {x in Either.Right(x*2)}))
+/*:
+ Finally, there's another classic monad we already defined with a different name: `Operation<A>`. This monad in Haskell is called `IO`, because it's used to perform "Input-Output" operations, that is, side effects.
+ 
+ The `IO` monad in Haskell is a little more complex than the others: it doesn't have a standard implementation, and it's platform-specific. That's because `IO` is used to safely perform side-effects within a languange that's purely functional, so it cannot perform side effects at all.
+ 
+ The `bind` operation for `IO` **will execute** the side effect in a platform specific way, extract the resulting value, and bind that value to a new operation, for example:
+ 
+ ```IO(A) >>- (A -> IO(B))```
+ 
+ This means: execute the first I/O operation and take the resulting value of type `A`, than use that value in the `A -> IO(B)` function which, by using `A` will yield another I/O operation (that will be eventually executed in the future).
+ 
+ In fact, the Haskell `main` function *returns an `IO` instance of type `()`*. All the functions in a Haskell program are bound to the main I/O chain, and the "last" I/O operation will return `()`.
+ 
+ In Swift we don't need to bother with this implementation details that concern Haskell simply because it's a pure functional language (as a matter of fact, `IO` functions work because they implicitly refer a value of `RealWorld` type, that is a singleton, but that's another story). Fortunately, in Swift we can perform side effects whenever we want, but it might still be useful to encapsulate those in a `Operation<A>` monad, and bind them in a chain: this way we can clearly see when we're performing unpure computations, and we can actually attach some additional information to the `runOperation` method, so that we can be notified when a side effect is taking place.
+ 
+ This seems kind of strange and abstract, but bear with me: controlling side effects, and writing most if your code in a pure, stateless style is an excellent way to reduce complexity and enhance your ability to reason about code.
+ */
 
 
 
