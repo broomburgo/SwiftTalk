@@ -135,8 +135,6 @@ extension Person1 {
 This way we can compose those functions arbitrarily.
 
 We can make the thing a little more "Swifty" by adding the functions `getMother` and `getFather` as methods to `Person`, but we need a function to extract the methods as [exponential objects](/Playgrounds/Exponentials.playground/Contents.swift): will define this function as a postfix operator `^`.
-
-We'll also add an initializer to `Maybe` that will act as `unit`.
 */
 extension Person1 {
 	func getMother() -> Maybe<Person1> {
@@ -153,15 +151,9 @@ postfix func ^ <A,B> (origin: A -> () -> B) -> A -> B {
 	return { origin($0)() }
 }
 
-extension Maybe {
-	init(_ value: A) {
-		self = .Just(value)
-	}
-}
-
 extension Person1 {
 	func mothersPaternalGrandfather() -> Maybe<Person1> {
-		return Maybe(self)
+		return Maybe.unit(self)
 			>>- Person1.getMother^
 			>>- Person1.getFather^
 			>>- Person1.getFather^
@@ -247,7 +239,7 @@ The laws basically state two things:
 To give and example of verification of the monad laws, we'll define a vary simple monad called `Identity<A>` that simply "boxes" a value, and has a method `runIdentity` to "extract" the value.
 */
 struct Identity<A: Equatable>: Equatable {
-	private let value: A
+	let value: A
 	init(_ value: A) {
 		self.value = value
 	}
@@ -256,7 +248,7 @@ struct Identity<A: Equatable>: Equatable {
 		return value
 	}
 
-	static func unit(x: A) -> Identity {
+	static func unit(x: A) -> Identity<A> {
 		return Identity(x)
 	}
 
@@ -309,17 +301,17 @@ What's the point of having one-way monads? They allow us to safely express and c
 Let suppose, for example, that we need a way to compose expensive computations in single blocks of code that can be run at will, but in separate queues. We could imagine a `Operation<A>` monad that's created with a function.
 */
 struct Operation<A: Equatable>: Equatable {
-	private let value: () -> A
+	let computation: () -> A
 	init(_ value: () -> A) {
-		self.value = value
+		self.computation = value
 	}
 
 	func runOperation() -> A {
-		return value()
+		return computation()
 	}
 
-	static func unit(x: A) -> Operation<A> {
-		return Operation { x }
+	static func unit(value: A) -> Operation<A> {
+		return Operation { value }
 	}
 
 	func bind <B> (transform: A -> Operation<B>) -> Operation<B> {
@@ -400,7 +392,7 @@ enum Either<A: Equatable>: Equatable {
 	case Left(ErrorType)
 	case Right(A)
 
-	static func unit (value: A) -> Either {
+	static func unit (value: A) -> Either<A> {
 		return .Right(value)
 	}
 
@@ -413,19 +405,19 @@ enum Either<A: Equatable>: Equatable {
 		}
 	}
 
-	func getOrCatch (catchError: ErrorType -> A) -> A {
+	func get() throws -> A {
 		switch self {
 		case let .Left(error):
-			return catchError(error)
+			throw error
 		case let .Right(value):
 			return value
 		}
 	}
 
-	func getOrCatch() throws -> A {
+	func getOrCatch (catchError: ErrorType -> A) -> A {
 		switch self {
 		case let .Left(error):
-			throw error
+			return catchError(error)
 		case let .Right(value):
 			return value
 		}
@@ -445,10 +437,10 @@ func == <A> (lhs: Either<A>, rhs: Either<A>) -> Bool {
 	}
 }
 /*:
-I added a `getOrCatch` method that acts like the `catchError` function in the original article, but defined two implementations:
+I added a couple of methods that basically act like the `catchError` function in the original article:
 
-- the first implementation will return the contained value for the `.Right` case, or will call a catching function, still returning a value of the same type;
-- the second implementation uses the built-in "throwing" mechanism to achieve the same goal, so it doesn't need a catching function, but must called within a `do{}catch{}` block;
+- the `get` method uses the built-in "throwing" mechanism to catch the eventual error, and must called within a `do{}catch{}` block;
+- the `getOrCatch` method will return the contained value for the `.Right` case, or will call a catching function, still returning a value of the same type;
 
 As usual, we must verify the monad laws for `Either<A>`:
 */
@@ -485,7 +477,207 @@ In fact, the Haskell `main` function *returns an `IO` instance of type `()`*. Al
 In Swift we don't need to bother with this implementation details that concern Haskell simply because it's a pure functional language (as a matter of fact, `IO` functions work because they implicitly refer a value of `RealWorld` type, that is a singleton, but that's another story). Fortunately, in Swift we can perform side effects whenever we want, but it might still be useful to encapsulate those in a `Operation<A>` monad, and bind them in a chain: this way we can clearly see when we're performing unpure computations, and we can actually attach some additional information to the `runOperation` method, so that we can be notified when a side effect is taking place.
 
 This seems kind of strange and abstract, but bear with me: controlling side effects, and writing most if your code in a pure, stateless style is an excellent way to reduce complexity and enhance your ability to reason about code.
+
+#### Monads with context
+
+So far we saw very simple monads, but other monads are a little harder to understand: we'll going to define them, and they share a common characteristic that sets them apart from the previous monads we defined, that is, they have some *context* associated with them.
+
+Remember that a monad is a computation that yields a value of type `A`, but along with a certain computational strategy. Because of that, in Swift we could always define a 'Monad<A>' type. With these new monads we're definining, we need to take into account also the type of the context that goes along with the yielded type, so we're going to define some `Monad<A,C>` types, with `C` as the context's type (we will actually use different letters other than `C`, depending on the particulat monad, but we'll always use `A` as the main type, and we'll always put the main type first).
+
+Let's start with `State<A,S>`.
+
+#### The State Monad
+
+The *state* monad will represent computations that, during execution, also modify some state. Because we want to represent this state modification with a pure function, `State<A,S>` will *contain* a function of type `S -> S`, so a function that will take some state value of type `S` and return some other value of the same type.
 */
+struct Unit: Equatable {
+	let get: () = ()
+	init() {}
+}
+
+func == (lhs: Unit, rhs: Unit) -> Bool {
+	return true
+}
+
+struct State<A: Equatable,S: Equatable> {
+	let computation: S -> (A,S)
+	init(computation: S -> (A,S)) {
+		self.computation = computation
+	}
+
+	func runState(state: S) -> (A,S) {
+		return computation(state)
+	}
+
+	static func unit(value: A) -> State<A,S> {
+		return State { state in (value,state) }
+	}
+
+	func bind<B>(transform: A -> State<B,S>) -> State<B,S> {
+		return State<B,S> { state in
+			let (newValue,newState) = self.runState(state)
+			let newStateMonad = transform(newValue)
+			return newStateMonad.runState(newState)
+		}
+	}
+
+	static func get() -> State<S,S> {
+		return State<S,S> { state in (state,state) }
+	}
+
+	static func put(newState: S) -> State<Unit,S> {
+		return State<Unit,S> { _ in (Unit(),newState) }
+	}
+
+	static func getS(transform: S -> A) -> State<A,S> {
+		return State<A,S> { state in (transform(state),state) }
+	}
+
+	static func modify(transform: S -> S) -> State<Unit,S> {
+		return State<Unit,S> { state in (Unit(),transform(state)) }
+	}
+}
+
+func >>- <A,B,S> (lhs: State<A,S>, rhs: A -> State<B,S>) -> State<B,S> {
+	return lhs.bind(rhs)
+}
+
+func equal<A: Equatable, S: Equatable>(first: State<A,S>, _ second: State<A,S>) -> S -> Bool {
+	return { state in first.runState(state) == second.runState(state) }
+}
+/*:
+Let's go over this step by step:
+
+- `runState` is the way we *execute* the monad, passing an initial state in, and retrieving the final state out: we also retrieve the final *value* out, but that's probably pointless in a real-world case, because usually the value is just use to chain state transformations together;
+
+- like for every monad, the starting point is always the `unit` static function, that builds the monad with a value of type `A`: this function will usually be called a the beginning of a monad *chain*, to start the various `bind` transformation; in this case, `unit` will create a `State<A,S>` where the computation doesn't affect the state at all;
+
+- the `bind` method is rather interesting in this case: what it does is, it creates a new `State<B,S>` with a computation function that *includes* the execution of the same function in the previous `State<A,S>` monad;
+
+- the various `get`, `put` and `getS` static methods are convenience functions that allow us to easily create particular state monads:
+
+	- `get` will create a `State<S,S>`, where the yielded value is actually the state;
+	
+	- `put` will create a `State<(),S>`, where we put a precise state as the output of the computation, and we yield a *void* value;
+
+	- `getS` will create a `State<A,S>` where the yielded value is gotten from the state, with a proper `transform` function;
+
+	- `modify` will create a `State<(),S>` where the computation consists in changing the state without considering the value (we yield a *void* value);
+
+As usual, we need to prove that `State<A,S>` is actually a monad, by verifying the laws. In this case the laws must be expressed in a rather different way, because the additional state parameter must be taken into account. In fact, we cannot define `State<A,S>` as `Equatable` now because we can only check if two state monads are equal by proving them against a certain state, which means that an `equal` function cannot just return a `Bool`, but must return a function that takes a `S` a returns a `Bool`.
+*/
+extension State {
+	static func firstLaw(f f: A -> State<A,S>) -> (A,S) -> Bool {
+		return { a, s in equal((State.unit(a) >>- f), f(a))(s) }
+	}
+
+	static func secondLaw() -> (A,S) -> Bool {
+		return { a, s in equal((State.unit(a) >>- State.unit), State.unit(a))(s) }
+	}
+
+	static func thirdLaw(f f: A -> State<A,S>, g: A -> State<A,S>) -> (A,S) -> Bool {
+		return { a, s in equal((State.unit(a) >>- f >>- g), (State.unit(a) >>- { a in f(a) >>- g }))(s) }
+	}
+}
+/*:
+We also need to define a new `checkLaw` function, that takes the additional state parameter:
+*/
+func checkLaw(law: (Int,Int) -> Bool) {
+	let firstRandom = randomIntegers(range: (-100...100), count: 50)
+	let secondRandom = randomIntegers(range: (-100...100), count: 50)
+	var random: [(Int,Int)] = []
+	for (index, firstValue) in firstRandom.enumerate() {
+		let secondValue = secondRandom[index]
+		random.append(firstValue,secondValue)
+	}
+	assert(random.map(law).reduce(true) { $0 && $1 });
+}
+/*:
+Now we can verify the laws:
+*/
+checkLaw(State<Int,Int>.firstLaw(f: { x in State { s in (x*x,s*s*s) }}))
+checkLaw(State<Int,Int>.secondLaw())
+checkLaw(State<Int,Int>.thirdLaw(f: {x in State { s in (x*x,s*s*s) }}, g: {x in State { s in (x*2,s*3) }}))
+/*:
+Here's a few more words on the state monad. An instance of `State<A,S>` *contains* a transformation of some state `S`, while the `A` value will usually be used to chain those transformations together, because we **need** an `A` to *build* this monad, for example with the `unit` function, like with every other monad. This can be really useful because sometimes we want to express separate transformations on a system, but in a indipendent way.
+
+A practical example might be useful: let's assume we have a series of inputs that will change the value of some counter depending on the counter's current value. The problem is that, whenever we get current value, it's "consumed", so the counter is actually reset, so we need a different way do pass the current or new values around.
+*/
+class Counter: Equatable {
+	private var value: Int
+	init(_ value: Int) {
+		self.value = value
+	}
+
+	func consumeValue() -> Int {
+		let value = self.value
+		self.value = 0
+		return value
+	}
+}
+
+func == (lhs: Counter, rhs: Counter) -> Bool {
+	return lhs.value == rhs.value
+}
+
+func transformConsidering(input: String) -> Int -> State<Int,Counter> {
+	return { previousValue in
+		switch input {
+		case "+":
+			return State<Int,Counter> { _ in
+				let newValue: Int
+				switch previousValue {
+				case (Int.min ..< 0):
+					newValue = previousValue+5
+				case (0 ..< 10):
+					newValue = previousValue+3
+				case (10 ..< 20):
+					newValue = previousValue+2
+				case (20 ..< Int.max):
+					newValue = previousValue+1
+				default:
+					/// impossible
+					fatalError()
+				}
+				return (newValue,Counter(newValue))
+			}
+		case "-":
+			return State<Int,Counter> { _ in
+				let newValue: Int
+				switch previousValue {
+				case (0..<Int.max):
+					newValue = previousValue-5
+				case (-10 ..< 0):
+					newValue = previousValue-3
+				case (-20 ..< -10):
+					newValue = previousValue-2
+				case (Int.min ..< -20):
+					newValue = previousValue-1
+				default:
+					/// impossible
+					fatalError()
+				}
+				return (newValue,Counter(newValue))
+			}
+		default:
+			return State<Int,Counter>.unit(previousValue)
+		}
+	}
+}
+
+let inputs = "++++|---+|||++|-++|||--++|+-+++".characters.map { String($0) }
+let final = inputs.reduce(State<Int,Counter>.unit(0)) { previousState, input in
+	previousState.bind(transformConsidering(input))
+}
+let (_,counter) = final.runState(Counter(0))
+assert(counter.consumeValue() == 13)
+
+
+
+
+
+
+
 
 
 
