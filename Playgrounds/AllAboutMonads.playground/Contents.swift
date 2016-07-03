@@ -238,7 +238,7 @@ The laws basically state two things:
 
 To give and example of verification of the monad laws, we'll define a vary simple monad called `Identity<A>` that simply "boxes" a value, and has a method `runIdentity` to "extract" the value.
 */
-struct Identity<A: Equatable>: Equatable {
+struct Identity<A> {
 	let value: A
 	init(_ value: A) {
 		self.value = value
@@ -260,24 +260,24 @@ struct Identity<A: Equatable>: Equatable {
 func >>- <A,B> (lhs: Identity<A>, rhs: A -> Identity<B>) -> Identity<B> {
 	return lhs.bind(rhs)
 }
-
-func == <A>(lhs: Identity<A>, rhs: Identity<A>) -> Bool {
-	return lhs.value == rhs.value
-}
 /*:
 To state that `Identity<A>` is **actually** a monad, we need to prove for it the following laws:
 */
-extension Identity {
+extension Identity where A: Equatable {
+	func isEqualTo(other: Identity<A>) -> Bool {
+		return self.runIdentity() == other.runIdentity()
+	}
+
 	static func firstLaw(f f: A -> Identity<A>) -> A -> Bool {
-		return { x in (Identity.unit(x) >>- f) == f(x) }
+		return { x in (Identity.unit(x) >>- f).isEqualTo(f(x)) }
 	}
 
 	static func secondLaw() -> A -> Bool {
-		return { x in Identity.unit(x) >>- Identity.unit == Identity.unit(x) }
+		return { x in (Identity.unit(x) >>- Identity.unit).isEqualTo(Identity.unit(x)) }
 	}
 
 	static func thirdLaw(f f: A -> Identity<A>, g: A -> Identity<A>) -> A -> Bool {
-		return { x in Identity.unit(x) >>- f >>- g == Identity.unit(x) >>- { a in f(a) >>- g } }
+		return { x in (Identity.unit(x) >>- f >>- g).isEqualTo(Identity.unit(x) >>- { a in f(a) >>- g }) }
 	}
 }
 /*:
@@ -300,7 +300,7 @@ What's the point of having one-way monads? They allow us to safely express and c
 
 Let suppose, for example, that we need a way to compose expensive computations in single blocks of code that can be run at will, but in separate queues. We could imagine a `Operation<A>` monad that's created with a function.
 */
-struct Operation<A: Equatable>: Equatable {
+struct Operation<A> {
 	let computation: () -> A
 	init(_ value: () -> A) {
 		self.computation = value
@@ -324,10 +324,6 @@ struct Operation<A: Equatable>: Equatable {
 func >>- <A,B> (lhs: Operation<A>, rhs: A -> Operation<B>) -> Operation<B> {
 	return lhs.bind(rhs)
 }
-
-func == <A>(lhs: Operation<A>, rhs: Operation<A>) -> Bool {
-	return lhs.runOperation() == rhs.runOperation()
-}
 /*:
 Notice how we defined `unit` and `>>-` for `Operation<A>`:
 
@@ -336,17 +332,21 @@ Notice how we defined `unit` and `>>-` for `Operation<A>`:
 
 This looks cool, but is it really a monad? The types match, but can we really compose instances of `Operation<A>` arbitrarily, yielding the result we expect? We need to verify the three monad laws for `Operation<A>`.
 */
-extension Operation {
+extension Operation where A: Equatable {
+	func isEqualTo(other: Operation<A>) -> Bool {
+		return self.runOperation() == other.runOperation()
+	}
+
 	static func firstLaw(f f: A -> Operation<A>) -> A -> Bool {
-		return { x in (Operation.unit(x) >>- f) == f(x) }
+		return { x in (Operation.unit(x) >>- f).isEqualTo(f(x)) }
 	}
 
 	static func secondLaw() -> A -> Bool {
-		return { x in Operation.unit(x) >>- Operation.unit == Operation.unit(x) }
+		return { x in (Operation.unit(x) >>- Operation.unit).isEqualTo(Operation.unit(x)) }
 	}
 
 	static func thirdLaw(f f: A -> Operation<A>, g: A -> Operation<A>) -> A -> Bool {
-		return { x in Operation.unit(x) >>- f >>- g == Operation.unit(x) >>- { a in f(a) >>- g } }
+		return { x in (Operation.unit(x) >>- f >>- g).isEqualTo(Operation.unit(x) >>- { a in f(a) >>- g }) }
 	}
 }
 /*:
@@ -388,7 +388,7 @@ extension Array {
 /*:
 There actually a very basic monad that we still didn't mention: the `Either<A>` monad. The original *All About Monads* article actually talks about the `MonadError<A>` class, and implements it in terms of the `Either<A>` monad, so that `MonadError<A>` ends up being an instance of `Either<A>`. I prefer just illustrating how to define and use `Either<A>`, with the `.Left` case attached to a `ErrorType`, that is, the Swift built-in error protocol.
 */
-enum Either<A: Equatable>: Equatable {
+enum Either<A> {
 	case Left(ErrorType)
 	case Right(A)
 
@@ -427,15 +427,6 @@ enum Either<A: Equatable>: Equatable {
 func >>- <A,B> (lhs: Either<A>, rhs: A -> Either<B>) -> Either<B> {
 	return lhs.bind(rhs)
 }
-
-func == <A> (lhs: Either<A>, rhs: Either<A>) -> Bool {
-	switch (lhs,rhs) {
-	case let (.Right(lhsValue),.Right(rhsValue)):
-		return lhsValue == rhsValue
-	default:
-		return false
-	}
-}
 /*:
 I added a couple of methods that basically act like the `catchError` function in the original article:
 
@@ -444,17 +435,26 @@ I added a couple of methods that basically act like the `catchError` function in
 
 As usual, we must verify the monad laws for `Either<A>`:
 */
-extension Either {
+extension Either where A: Equatable {
+	func isEqualTo(other: Either<A>) -> Bool {
+		switch (self,other) {
+		case let (.Right(lhsValue),.Right(rhsValue)):
+			return lhsValue == rhsValue
+		default:
+			return false
+		}
+	}
+
 	static func firstLaw(f f: A -> Either<A>) -> A -> Bool {
-		return { x in (Either.unit(x) >>- f) == f(x) }
+		return { x in (Either.unit(x) >>- f).isEqualTo(f(x)) }
 	}
 
 	static func secondLaw() -> A -> Bool {
-		return { x in Either.unit(x) >>- Either.unit == Either.unit(x) }
+		return { x in (Either.unit(x) >>- Either.unit).isEqualTo(Either.unit(x)) }
 	}
 
 	static func thirdLaw(f f: A -> Either<A>, g: A -> Either<A>) -> A -> Bool {
-		return { x in Either.unit(x) >>- f >>- g == Either.unit(x) >>- { a in f(a) >>- g } }
+		return { x in (Either.unit(x) >>- f >>- g).isEqualTo(Either.unit(x) >>- { a in f(a) >>- g }) }
 	}
 }
 
@@ -499,7 +499,7 @@ func == (lhs: Unit, rhs: Unit) -> Bool {
 	return true
 }
 
-struct State<A: Equatable,S: Equatable> {
+struct State<A,S> {
 	let computation: S -> (A,S)
 	init(computation: S -> (A,S)) {
 		self.computation = computation
@@ -541,10 +541,6 @@ struct State<A: Equatable,S: Equatable> {
 func >>- <A,B,S> (lhs: State<A,S>, rhs: A -> State<B,S>) -> State<B,S> {
 	return lhs.bind(rhs)
 }
-
-func equal<A: Equatable, S: Equatable>(first: State<A,S>, _ second: State<A,S>) -> S -> Bool {
-	return { state in first.runState(state) == second.runState(state) }
-}
 /*:
 Let's go over this step by step:
 
@@ -566,17 +562,21 @@ Let's go over this step by step:
 
 As usual, we need to prove that `State<A,S>` is actually a monad, by verifying the laws. In this case the laws must be expressed in a rather different way, because the additional state parameter must be taken into account. In fact, we cannot define `State<A,S>` as `Equatable` now because we can only check if two state monads are equal by proving them against a certain state, which means that an `equal` function cannot just return a `Bool`, but must return a function that takes a `S` a returns a `Bool`.
 */
-extension State {
+extension State where A: Equatable, S: Equatable {
+	func isEqualTo(other: State<A,S>) -> S -> Bool {
+		return { state in self.runState(state) == other.runState(state) }
+	}
+
 	static func firstLaw(f f: A -> State<A,S>) -> (A,S) -> Bool {
-		return { a, s in equal((State.unit(a) >>- f), f(a))(s) }
+		return { a, s in (State.unit(a) >>- f).isEqualTo(f(a))(s) }
 	}
 
 	static func secondLaw() -> (A,S) -> Bool {
-		return { a, s in equal((State.unit(a) >>- State.unit), State.unit(a))(s) }
+		return { a, s in (State.unit(a) >>- State.unit).isEqualTo(State.unit(a))(s) }
 	}
 
 	static func thirdLaw(f f: A -> State<A,S>, g: A -> State<A,S>) -> (A,S) -> Bool {
-		return { a, s in equal((State.unit(a) >>- f >>- g), (State.unit(a) >>- { a in f(a) >>- g }))(s) }
+		return { a, s in (State.unit(a) >>- f >>- g).isEqualTo((State.unit(a) >>- { a in f(a) >>- g }))(s) }
 	}
 }
 /*:
@@ -666,13 +666,212 @@ func transformConsidering(input: String) -> Int -> State<Int,Counter> {
 }
 
 let inputs = "++++|---+|||++|-++|||--++|+-+++".characters.map { String($0) }
-let final = inputs.reduce(State<Int,Counter>.unit(0)) { previousState, input in
-	previousState.bind(transformConsidering(input))
-}
+
+let starting = State<Int,Counter>.unit(0)
+let final = inputs.reduce(starting) { $0.bind(transformConsidering($1)) }
+
 let (_,counter) = final.runState(Counter(0))
+
 assert(counter.consumeValue() == 13)
+/*:
+#### The Reader Monad
 
+The *reader* monad can be used to represent a computation that needs an input value to be executed. As we saw before, `Operation<A>` will yield a value `A`when the contained operation is executed, while `Reader<A,E>` will yield a value considering an input value of type `E`: this can be considered a computation that to yield a value must *read* from an *environment* (thus the type `E`).
 
+`Reader<A,E>` can also be seen as a simplyfied version of `State<A,S>`, where a state comes in but no state comes out. `unit` will just yield a value by ignoring the environment, while `bind` will pass the enviroment parameter from the first reader to the second one.
+*/
+struct Reader<A,E> {
+	let function: E -> A
+	init(_ function: E -> A) {
+		self.function = function
+	}
+
+	func runReader(environment: E) -> A {
+		return function(environment)
+	}
+
+	static func unit(value: A) -> Reader<A,E> {
+		return Reader<A,E> { _ in value }
+	}
+
+	func bind <B> (transform: A -> Reader<B,E>) -> Reader<B,E> {
+		return Reader<B,E> { environment in
+			transform(self.runReader(environment)).runReader(environment)
+		}
+	}
+}
+
+func >>- <A,B,E> (lhs: Reader<A,E>, rhs: A -> Reader<B,E>) -> Reader<B,E> {
+	return lhs.bind(rhs)
+}
+/*:
+As was for `State<A,S>`, a couple of convenience functions will help working with this new type:
+
+- the `ask` static method will construct a reader that yields the environment as the main parameter;
+
+- the `local` method will modify the reader by modifying the environment;
+*/
+extension Reader {
+	static func ask() -> Reader<E,E> {
+		return Reader<E,E> { $0 }
+	}
+
+	func local(transform: E -> E) -> Reader<A,E> {
+		return Reader<A,E> { self.runReader(transform($0)) }
+	}
+}
+/*:
+As usual, let's define the monad laws for `Reader<A,E>`, and prove them, by using the same modified technique that we used on `State<A,S>`:
+*/
+extension Reader where A: Equatable, E: Equatable {
+	func isEqualTo(other: Reader<A,E>) -> E -> Bool {
+		return { self.runReader($0) == other.runReader($0) }
+	}
+
+	static func firstLaw(f f: A -> Reader<A,E>) -> (A,E) -> Bool {
+		return { a, e in (Reader.unit(a) >>- f).isEqualTo(f(a))(e) }
+	}
+
+	static func secondLaw() -> (A,E) -> Bool {
+		return { a, e in (Reader.unit(a) >>- Reader.unit).isEqualTo(Reader.unit(a))(e) }
+	}
+
+	static func thirdLaw(f f: A -> Reader<A,E>, g: A -> Reader<A,E>) -> (A,E) -> Bool {
+		return { a, e in (Reader.unit(a) >>- f >>- g).isEqualTo((Reader.unit(a) >>- { a in f(a) >>- g }))(e) }
+	}
+}
+
+checkLaw(Reader<Int,Int>.firstLaw(f: { x in Reader { e in x*e }}))
+checkLaw(Reader<Int,Int>.secondLaw())
+checkLaw(Reader<Int,Int>.thirdLaw(f: {x in Reader { e in x*e }}, g: {x in Reader { e in (x+e)*2 }}))
+/*:
+#### The Writer Monad
+
+`Writer<A,L>` can be considered the *opposite* monad to `Reader<A,E>` in respect to `State<A,S>`: in fact, the writer monad represents a computation that needs no environment, but will return some additional information (a *log*, hence the `L` type for the context) along with returned value of type `A`. This ca be useful if a in chain of computations we also want to keep track of all the activities, and store them a in some form of log.
+
+The important part about `Writer<A,L>` is that its binding strategy is to preserve *all the logs* produced by previous computations: to do that, the logs must be concatenated somehow, so for the `L` type we must have some additional requirements. What we ask from `L` is twofold:
+
+- we must be able to trivially produce an *empty* log, because `unit` must be constructed just with a `A` value;
+
+- we must be able to generically concatenate two logs of the same type;
+
+These requirements are exactly those of an abstract algebra type called *Monoid*. A monoid can be defined like the following:
+*/
+protocol Monoid {
+	static var empty: Self { get }
+	func operation(other: Self) -> Self
+}
+/*:
+So it defines an `empty` static computed property, and an `operation` method that will concatenate to monoids of the same type. There is no requirement on `operation` other than it must be **associative**, which means that:
+
+```a.operation(b).operation(c) == a.operation(b.operation(c))```
+
+Other than that, `operation` can do anything. In the case of the writer monad, operation will probably act as a *union* function on a bunch of informations, or as a *add* function for a string, but it's not specified, it can do anything.
+
+That being said, here's a definition for `Writer<A,L>`:
+*/
+struct Writer<A,L: Monoid> {
+	let function: () -> (A,L)
+	init(_ function: () -> (A,L)) {
+		self.function = function
+	}
+
+	func runWriter() -> (A,L) {
+		return function()
+	}
+
+	static func unit(value: A) -> Writer<A,L> {
+		return Writer { (value,L.empty) }
+	}
+
+	func bind<B>(transform: A -> Writer<B,L>) -> Writer<B,L> {
+		return Writer<B,L> {
+			let (oldValue,oldLog) = self.runWriter()
+			let (newValue,newLog) = transform(oldValue).runWriter()
+			return (newValue,oldLog.operation(newLog))
+		}
+	}
+}
+
+func >>- <A,B,L> (lhs: Writer<A,L>, rhs: A -> Writer<B,L>) -> Writer<B,L> {
+	return lhs.bind(rhs)
+}
+/*:
+As we can see, the `bind` method will simply create the new writer from the binding function, and then concatenate the logs with the `operation` method.
+
+The Haskell library defines a bunch of useful convenience functions for working with writers:
+
+- the `tell` method will add an entry to the log;
+
+- the `listen` method will basically add the log to the yielded value, thus creating a tuple; it can be useful if some binding operations require the log to also be taken into account;
+
+- the `censor` method will change the log of the writer via a specific function passed to the method;
+*/
+extension Writer {
+	func tell(newLog: L) -> Writer<A,L> {
+		return Writer<A,L> {
+			let (oldValue,oldLog) = self.runWriter()
+			return (oldValue,oldLog.operation(newLog))
+		}
+	}
+
+	func listen() -> Writer<(A,L),L> {
+		return Writer<(A,L),L> {
+			let (oldValue,oldLog) = self.runWriter()
+			return ((oldValue,oldLog),oldLog)
+		}
+	}
+
+	func censor(transform: L -> L) -> Writer<A,L> {
+		return Writer<A,L> {
+			let (oldValue,oldLog) = self.runWriter()
+			return (oldValue,transform(oldLog))
+		}
+	}
+}
+/*:
+In checking the monad laws, we can go back to the previous strategy, because the computation encapsulated by the writer doesn't require an input:
+*/
+extension Writer where A: Equatable, L: Equatable {
+	func isEqualTo(other: Writer<A,L>) -> Bool {
+		return self.runWriter() == other.runWriter()
+	}
+
+	static func firstLaw(f f: A -> Writer<A,L>) -> A -> Bool {
+		return { x in (Writer.unit(x) >>- f).isEqualTo(f(x)) }
+	}
+
+	static func secondLaw() -> A -> Bool {
+		return { x in (Writer.unit(x) >>- Writer.unit).isEqualTo(Writer.unit(x)) }
+	}
+
+	static func thirdLaw(f f: A -> Writer<A,L>, g: A -> Writer<A,L>) -> A -> Bool {
+		return { x in (Writer.unit(x) >>- f >>- g).isEqualTo(Writer.unit(x) >>- { a in f(a) >>- g }) }
+	}
+}
+
+struct IntSum: Equatable, Monoid {
+	let value: Int
+	init(_ value: Int) {
+		self.value = value
+	}
+
+	static var empty: IntSum {
+		return IntSum(0)
+	}
+
+	func operation(other: IntSum) -> IntSum {
+		return IntSum(self.value + other.value)
+	}
+}
+
+func == (lhs: IntSum, rhs: IntSum) -> Bool {
+	return lhs.value == rhs.value
+}
+
+checkLaw(Writer<Int,IntSum>.firstLaw(f: { x in Writer { (x*x,IntSum(x)) }}))
+checkLaw(Writer<Int,IntSum>.secondLaw())
+checkLaw(Writer<Int,IntSum>.thirdLaw(f: {x in Writer { (x*x,IntSum(x)) }}, g: {x in Writer { (x*2,IntSum(x)) }}))
 
 
 
