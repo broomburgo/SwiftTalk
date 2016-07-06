@@ -872,7 +872,15 @@ func == (lhs: IntSum, rhs: IntSum) -> Bool {
 checkLaw(Writer<Int,IntSum>.firstLaw(f: { x in Writer { (x*x,IntSum(x)) }}))
 checkLaw(Writer<Int,IntSum>.secondLaw())
 checkLaw(Writer<Int,IntSum>.thirdLaw(f: {x in Writer { (x*x,IntSum(x)) }}, g: {x in Writer { (x*2,IntSum(x)) }}))
+/*:
+The monads we defined will suffice for most cases. Also, we show what a monad is and how to define it, along with how to prove that is actually respects the law. Thus, we're going to stop defining monads for now: in the original tutorial also the *Continuation Monad* is defined, but we're going to skip that for now, and focus instead on the next big topic, mandatory for proficiently using monads in real-world cases, that is, *combining monads*.
+*/
+/*: ------ */
+/*:
+## Combining monads
 
+
+*/
 
 
 
