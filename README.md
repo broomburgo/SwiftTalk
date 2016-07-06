@@ -30,10 +30,12 @@ A introduction to primitive recursion, a.k.a., a way to build recursive function
 
 ---
 
-#### [All About Monads (**IN PROGRESS**)](/Playgrounds/AllAboutMonads.playground/Contents.swift)
+#### All About Monads (**IN PROGRESS**)
 
 An opinionated translation into Swift of [this famous Haskell tutorial](https://wiki.haskell.org/All_About_Monads).
 
-The playground is still in progress.
+The talk is divided in two parts, and it's still in progress:
+[**Part 1**](/Playgrounds/AllAboutMonads_part1.playground/Contents.swift)
+[**Part 2**](/Playgrounds/AllAboutMonads_part2.playground/Contents.swift)
 
 ---
