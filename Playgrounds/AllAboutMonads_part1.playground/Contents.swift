@@ -1,7 +1,11 @@
 /*:
-# All About Monads
+# All About Monads - part 1
 
 A more or less complete translation into Swift of the famous "All About Monads" Haskell tutorial, available [here](https://wiki.haskell.org/All_About_Monads). The translation will actually be  **opinionated**, because I'll make personal observations on what's going on that could be not in line with the original tutorial. Also, I'm going to use different examples.
+
+Due to the complexity of the topic, this wil be split in 2 different playgrounds. This is the first one.
+
+------
 
 Monads in programming are a way of structure computations with values and sequences of transformations of those value; thus, monads are tools for constructing programs in a compositional way.
 
@@ -386,7 +390,7 @@ extension Array {
 	}
 }
 /*:
-There actually a very basic monad that we still didn't mention: the `Either<A>` monad. The original *All About Monads* article actually talks about the `MonadError<A>` class, and implements it in terms of the `Either<A>` monad, so that `MonadError<A>` ends up being an instance of `Either<A>`. I prefer just illustrating how to define and use `Either<A>`, with the `.Left` case attached to a `ErrorType`, that is, the Swift built-in error protocol.
+There's actually a very basic monad that we still didn't mention: the `Either<A>` monad. The original *All About Monads* article actually talks about the `MonadError<A>` class, and implements it in terms of the `Either<A>` monad, so that `MonadError<A>` ends up being an instance of `Either<A>`. I prefer just illustrating how to define and use `Either<A>`, with the `.Left` case attached to a `ErrorType`, that is, the Swift built-in error protocol.
 */
 enum Either<A> {
 	case Left(ErrorType)
@@ -874,30 +878,6 @@ checkLaw(Writer<Int,IntSum>.secondLaw())
 checkLaw(Writer<Int,IntSum>.thirdLaw(f: {x in Writer { (x*x,IntSum(x)) }}, g: {x in Writer { (x*2,IntSum(x)) }}))
 /*:
 The monads we defined will suffice for most cases. Also, we show what a monad is and how to define it, along with how to prove that is actually respects the law. Thus, we're going to stop defining monads for now: in the original tutorial also the *Continuation Monad* is defined, but we're going to skip that for now, and focus instead on the next big topic, mandatory for proficiently using monads in real-world cases, that is, *combining monads*.
+
+This ends part one of this talk.
 */
-/*: ------ */
-/*:
-## Combining monads
-
-
-*/
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-print("TO BE CONTINUED")
-
