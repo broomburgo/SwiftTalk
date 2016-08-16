@@ -35,3 +35,9 @@ A introduction to primitive recursion, a.k.a., a way to build recursive function
 An opinionated translation into Swift of [this famous Haskell tutorial](https://wiki.haskell.org/All_About_Monads).
 
 ---
+
+#### [Monads in Swift (IN PROGRESS)](/Playgrounds/MonadsInSwift.playground/Contents.swift)
+
+A proposal for a way to represent monads in Swift, along with a strategy to implement monad transformers: the playground is still based on [All About Monads](https://wiki.haskell.org/All_About_Monads).
+
+---
