@@ -36,7 +36,7 @@ An opinionated translation into Swift of [this famous Haskell tutorial](https://
 
 ---
 
-#### [Monads in Swift (IN PROGRESS)](/Playgrounds/MonadsInSwift.playground/Contents.swift)
+#### [Monads in Swift](/Playgrounds/MonadsInSwift.playground/Contents.swift)
 
 A proposal for a way to represent monads in Swift, along with a strategy to implement monad transformers: the playground is still based on [All About Monads](https://wiki.haskell.org/All_About_Monads).
 
